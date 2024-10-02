@@ -1,0 +1,51 @@
+import OpenAI from "openai";
+import "dotenv/config";
+
+const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+
+const createNewThreadId = async () => {
+    const thread = await client.beta.threads.create();
+    return thread.id;
+};
+
+export const postUserInput = async (req, res) => {
+    const { userInput, currentThreadId } = req.body;
+    try {
+        const threadId = currentThreadId || (await createNewThreadId());
+        const message = await client.beta.threads.messages.create(threadId, {
+            role: "user",
+            content: userInput,
+        });
+        const run = await client.beta.threads.runs.createAndPoll(threadId, {
+            assistant_id: process.env.ASSISTANT_ID,
+            // instructions: "Please address the user as Mervin Praison.",
+        });
+        if (run.status === "completed") {
+            const messages = await client.beta.threads.messages.list(
+                run.thread_id
+            );
+            // Extract the conversation from the messages in a structured format
+            const formattedMessages = messages.data
+                .reverse()
+                .map((message) => ({
+                    role: message.role,
+                    content: message.content[0].text.value,
+                }));
+
+            // Return the messages as JSON
+            res.json({
+                threadId: threadId,
+                messages: formattedMessages,
+            });
+        } else {
+            res.json({
+                threadId: threadId,
+                runStatus: run.status,
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};

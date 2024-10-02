@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express"; //const OpenAI = require("openai");
 import OpenAI from "openai";
 import { rootRouter } from "./routes/root.js";
+import { assistantRouter } from "./routes/api/assistant.js";
 const PORT = process.env.PORT || 3000;
 
 const app = express();
@@ -13,7 +14,7 @@ app.use(express.json());
 
 app.use("/", rootRouter);
 
-// app.use("/assistant", require("./routes/api/assistant"));
+app.use("/assistant", assistantRouter);
 
 app.post("/chat", async (req, res) => {
     const { userInput } = req.body;
