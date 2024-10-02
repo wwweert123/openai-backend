@@ -3,12 +3,17 @@ import express from "express"; //const OpenAI = require("openai");
 import OpenAI from "openai";
 import { rootRouter } from "./routes/root.js";
 import { assistantRouter } from "./routes/api/assistant.js";
+import cors from "cors";
+
 const PORT = process.env.PORT || 3000;
 
 const app = express();
 const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
+
+// Cross Origin Resource Sharing
+app.use(cors());
 
 app.use(express.json());
 

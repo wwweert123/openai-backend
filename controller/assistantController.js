@@ -11,6 +11,7 @@ const createNewThreadId = async () => {
 };
 
 export const postUserInput = async (req, res) => {
+    console.log("Post User Input called");
     const { userInput, currentThreadId } = req.body;
     try {
         const threadId = currentThreadId || (await createNewThreadId());
@@ -27,17 +28,18 @@ export const postUserInput = async (req, res) => {
                 run.thread_id
             );
             // Extract the conversation from the messages in a structured format
-            const formattedMessages = messages.data
-                .reverse()
-                .map((message) => ({
-                    role: message.role,
-                    content: message.content[0].text.value,
-                }));
+            // const formattedMessages = messages.data
+            //     .reverse()
+            //     .map((message) => ({
+            //         role: message.role,
+            //         content: message.content[0].text.value,
+            //     }));
 
             // Return the messages as JSON
+            console.log(messages);
             res.json({
                 threadId: threadId,
-                messages: formattedMessages,
+                reply: messages.data[0].content[0].text.value,
             });
         } else {
             res.json({
