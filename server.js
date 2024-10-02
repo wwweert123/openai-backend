@@ -1,6 +1,8 @@
 import "dotenv/config";
 import express from "express"; //const OpenAI = require("openai");
 import OpenAI from "openai";
+import { rootRouter } from "./routes/root.js";
+const PORT = process.env.PORT || 3000;
 
 const app = express();
 const client = new OpenAI({
@@ -8,6 +10,10 @@ const client = new OpenAI({
 });
 
 app.use(express.json());
+
+app.use("/", rootRouter);
+
+// app.use("/assistant", require("./routes/api/assistant"));
 
 app.post("/chat", async (req, res) => {
     const { userInput } = req.body;
@@ -28,4 +34,15 @@ app.post("/chat", async (req, res) => {
     }
 });
 
-app.listen(3000, () => console.log("Server running on port 3000"));
+app.all("*", (req, res) => {
+    res.status(404);
+    if (req.accepts("html")) {
+        res.sendFile(path.join(__dirname, "views", "404.html"));
+    } else if (req.accepts("json")) {
+        res.json({ error: "404 Not Found" });
+    } else {
+        res.type("txt").send("404 Not Found");
+    }
+});
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
