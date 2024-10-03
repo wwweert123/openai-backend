@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { client } from "../helpers/api/Openai.js";
+import { eventHandler } from "../helpers/EventEmitter.js";
 
 const createNewThreadId = async () => {
     const thread = await client.beta.threads.create();
@@ -10,29 +12,34 @@ export const postUserInput = async (req, res) => {
     const { userInput, currentThreadId } = req.body;
     try {
         const threadId = currentThreadId || (await createNewThreadId());
+
         const message = await client.beta.threads.messages.create(threadId, {
             role: "user",
             content: userInput,
         });
-        const run = await client.beta.threads.runs.createAndPoll(threadId, {
-            assistant_id: process.env.ASSISTANT_ID,
-            // instructions: "Please address the user as Mervin Praison.",
-        });
-        if (run.status === "completed") {
-            const messages = await client.beta.threads.messages.list(
-                run.thread_id
-            );
-            console.log(messages);
-            res.json({
-                threadId: threadId,
-                reply: messages.data[0].content[0].text.value,
-            });
-        } else {
-            res.json({
-                threadId: threadId,
-                runStatus: run.status,
-            });
+
+        // Reset the accumulated message in the event handler before streaming
+        eventHandler.resetMessage();
+
+        const stream = await client.beta.threads.runs.stream(
+            threadId,
+            { assistant_id: process.env.ASSISTANT_ID },
+            eventHandler
+        );
+
+        for await (const event of stream) {
+            eventHandler.emit("event", event);
         }
+
+        // Once the stream is complete, send the full message to the frontend
+        const fullMessage = eventHandler.getFullMessage();
+        res.json({
+            threadId,
+            reply:
+                fullMessage === ""
+                    ? "No message received at backend"
+                    : fullMessage,
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
