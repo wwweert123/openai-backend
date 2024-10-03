@@ -8,6 +8,10 @@ const createNewThreadId = async () => {
 
 export const postUserInput = async (req, res) => {
     try {
+        // await assistantService.client.beta.threads.runs.cancel(
+        //     "thread_spTObfwfWggnETipjR7qA19D",
+        //     "run_ItKHtZZtncswGP4PMFGTJlJ0"
+        // );
         const { userInput, currentThreadId } = req.body;
         const threadId = currentThreadId || (await createNewThreadId());
 

@@ -1,4 +1,28 @@
 import { client } from "./api/Openai.js";
+import { theCatAPI } from "./api/CatAPI.js";
+
+async function getCatImages(arg) {
+    // Parse the string into an object
+    let parsedArg;
+
+    try {
+        parsedArg = JSON.parse(arg); // Convert the string to a JavaScript object
+    } catch (error) {
+        return "JSON cannot be parsed at function call: " + error;
+    }
+
+    // Now you can access the properties of the parsed object
+    const images = await theCatAPI.images.searchImages({
+        limit: parsedArg.number_of_images || 1, // Access number_of_images
+        // breeds: [parsedArg.breed || ""], // Access breed
+        breeds: ["beng"],
+    });
+
+    console.log("Parsed Argument:", parsedArg);
+    console.log("Images fetched:", images);
+
+    return JSON.stringify(images);
+}
 
 class AssistantService {
     constructor(client) {
@@ -27,17 +51,21 @@ class AssistantService {
 
     // Handle tool call actions like fetching external data (e.g., cat images)
     async handleRequiresAction(data, runId, threadId) {
-        const toolOutputs =
+        const toolOutputs = await Promise.all(
             data.required_action.submit_tool_outputs.tool_calls.map(
-                (toolCall) => {
+                async (toolCall) => {
                     if (toolCall.function.name === "fetch_cat_images") {
+                        console.log(toolCall.function.arguments);
                         return {
                             tool_call_id: toolCall.id,
-                            output: "id:a5d,url:https://cdn2.thecatapi.com/images/a5d.jpg,width:560,height:395",
+                            output: await getCatImages(
+                                toolCall.function.arguments || {}
+                            ),
                         };
                     }
                 }
-            );
+            )
+        );
 
         // Submit tool outputs and process follow-up events
         const stream =
