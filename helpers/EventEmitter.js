@@ -15,15 +15,53 @@ class EventHandler extends EventEmitter {
                 const deltaContent = event.data.delta.content[0].text.value;
                 this.message += deltaContent; // Accumulate the content
             }
-            // if (event.event === "thread.run.requires_action") {
-            //     await this.handleRequiresAction(
-            //         event.data,
-            //         event.data.id,
-            //         event.data.thread_id
-            //     );
-            // }
+            if (event.event === "thread.run.requires_action") {
+                console.log(event.data);
+                await this.handleRequiresAction(
+                    event.data,
+                    event.data.id,
+                    event.data.thread_id
+                );
+            }
         } catch (error) {
             console.error("Error handling event:", error);
+        }
+    }
+
+    async handleRequiresAction(data, runId, threadId) {
+        try {
+            const toolOutputs =
+                data.required_action.submit_tool_outputs.tool_calls.map(
+                    (toolCall) => {
+                        if (toolCall.function.name === "fetch_cat_images") {
+                            return {
+                                tool_call_id: toolCall.id,
+                                output: "id:a5d,url:https://cdn2.thecatapi.com/images/a5d.jpg,width:560,height:395}",
+                            };
+                        }
+                    }
+                );
+            // Submit all the tool outputs at the same time
+            await this.submitToolOutputs(toolOutputs, runId, threadId);
+        } catch (error) {
+            console.error("Error processing required action:", error);
+        }
+    }
+
+    async submitToolOutputs(toolOutputs, runId, threadId) {
+        try {
+            // Use the submitToolOutputsStream helper
+            const stream =
+                this.client.beta.threads.runs.submitToolOutputsStream(
+                    threadId,
+                    runId,
+                    { tool_outputs: toolOutputs }
+                );
+            for await (const event of stream) {
+                this.emit("event", event);
+            }
+        } catch (error) {
+            console.error("Error submitting tool outputs:", error);
         }
     }
 
