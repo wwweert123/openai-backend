@@ -1,44 +1,40 @@
 import "dotenv/config";
-import { client } from "../helpers/api/Openai.js";
-import { eventHandler } from "../helpers/EventEmitter.js";
+import { assistantService } from "../helpers/AssistantService.js";
 
 const createNewThreadId = async () => {
-    const thread = await client.beta.threads.create();
+    const thread = await assistantService.client.beta.threads.create();
     return thread.id;
 };
 
 export const postUserInput = async (req, res) => {
-    console.log("Post User Input called");
-    const { userInput, currentThreadId } = req.body;
     try {
+        const { userInput, currentThreadId } = req.body;
         const threadId = currentThreadId || (await createNewThreadId());
 
-        const message = await client.beta.threads.messages.create(threadId, {
+        // Reset the accumulated message before starting the stream
+        assistantService.resetMessage();
+
+        // Create a new user message in the thread
+        await assistantService.client.beta.threads.messages.create(threadId, {
             role: "user",
             content: userInput,
         });
 
-        // Reset the accumulated message in the event handler before streaming
-        eventHandler.resetMessage();
-
-        const stream = await client.beta.threads.runs.stream(
+        // Start streaming the assistant's response
+        const stream = await assistantService.client.beta.threads.runs.stream(
             threadId,
-            { assistant_id: process.env.ASSISTANT_ID },
-            eventHandler
+            {
+                assistant_id: process.env.ASSISTANT_ID,
+            }
         );
 
-        for await (const event of stream) {
-            eventHandler.emit("event", event);
-        }
+        // Process the stream and accumulate messages
+        await assistantService.processStream(stream);
 
-        // Once the stream is complete, send the full message to the frontend
-        const fullMessage = eventHandler.getFullMessage();
+        // Send the accumulated response to the frontend
         res.json({
             threadId,
-            reply:
-                fullMessage === ""
-                    ? "No message received at backend"
-                    : fullMessage,
+            reply: assistantService.getFullMessage(),
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
