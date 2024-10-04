@@ -1,5 +1,25 @@
 import { client } from "./api/Openai.js";
 import { theCatAPI } from "./api/CatAPI.js";
+import { Breed } from "@thatapicompany/thecatapi";
+
+// Function to check if a breed exists in the Breed enum (case-insensitive)
+function getValidBreed(breed) {
+    const lowerCaseBreed = breed.toLowerCase();
+
+    // Check if breed matches any enum keys (names) or values (ids) case-insensitively
+    for (const key of Object.keys(Breed)) {
+        if (key.toLowerCase() === lowerCaseBreed) {
+            // If it matches the enum key, return the corresponding value
+            return Breed[key];
+        }
+        if (Breed[key].toLowerCase() === lowerCaseBreed) {
+            // If it matches the enum value, return the value itself
+            return Breed[key];
+        }
+    }
+    console.warn(`Breed "${breed}" is not valid. Proceeding without breed.`);
+    return null; // Return null if no match found
+}
 
 async function getCatImages(arg) {
     // Parse the string into an object
@@ -11,11 +31,12 @@ async function getCatImages(arg) {
         return "JSON cannot be parsed at function call: " + error;
     }
 
+    const breed = getValidBreed(parsedArg.breed) || "";
+
     // Now you can access the properties of the parsed object
     const images = await theCatAPI.images.searchImages({
         limit: parsedArg.number_of_images || 1, // Access number_of_images
-        // breeds: [parsedArg.breed || ""], // Access breed
-        breeds: ["beng"],
+        breeds: [breed],
     });
 
     console.log("Parsed Argument:", parsedArg);
